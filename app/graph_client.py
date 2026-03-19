@@ -74,3 +74,29 @@ async def get_policies_by_device_id(device_id: str) -> list[dict[str, Any]]:
     }
     data = await _graph_post(url, body)
     return data
+
+
+async def get_users_by_display_name(display_name: str) -> list[dict[str, Any]]:
+    """Search for users by display name using tokenized search (contains-like).
+
+    Returns a list of user objects with id, displayName, userPrincipalName, and mail.
+    """
+    url = f"{settings.graph_base_url}/users"
+    params = {
+        "$search": f'"displayName:{display_name}"',
+        "$select": "id,displayName,userPrincipalName,mail",
+        "$top": "50",
+        "$orderby": "displayName",
+        "$count": "true",
+    }
+    token = get_graph_token()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "ConsistencyLevel": "eventual",
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        response = await client.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
+    return data.get("value", [])

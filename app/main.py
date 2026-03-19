@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.graph_client import get_devices_by_upn, get_policies_by_device_id
+from app.graph_client import get_devices_by_upn, get_policies_by_device_id, get_users_by_display_name
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,25 @@ TOOLS: list[dict[str, Any]] = [
                 }
             },
             "required": ["device_id"],
+        },
+    },
+    {
+        "name": "get_users_by_display_name",
+        "description": (
+            "Search for users by display name with fuzzy matching (startsWith). "
+            "Use this when you don't know the exact UPN but know part of the user's "
+            "display name. Returns user ID, display name, UPN, and email for each match. "
+            "Handles multiple matches, no matches, and partial name searches."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "display_name": {
+                    "type": "string",
+                    "description": "The display name (or beginning of it) to search for, e.g. 'Mickey' or 'Mickey Mouse'.",
+                }
+            },
+            "required": ["display_name"],
         },
     },
 ]
@@ -132,6 +151,19 @@ async def _handle_tool_call(req_id: Any, params: dict) -> dict:
                 "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
             })
 
+        if tool_name == "get_users_by_display_name":
+            display_name = arguments.get("display_name", "")
+            if not display_name:
+                return _jsonrpc_error(req_id, -32602, "Missing required argument: display_name")
+            result = await get_users_by_display_name(display_name)
+            if not result:
+                return _jsonrpc_response(req_id, {
+                    "content": [{"type": "text", "text": f"No users found matching '{display_name}'."}],
+                })
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
         return _jsonrpc_error(req_id, -32602, f"Unknown tool: {tool_name}")
 
     except Exception as exc:
@@ -154,9 +186,9 @@ _sessions: dict[str, bool] = {}
 
 def _setup_telemetry(app: FastAPI) -> None:
     """Configure Azure Monitor / Application Insights if connection string is set."""
-    conn_str = settings.applicationinsights_connection_string
-    if not conn_str:
-        logger.info("Application Insights connection string not set – telemetry disabled.")
+    conn_str = (settings.applicationinsights_connection_string or "").strip()
+    if not conn_str or "InstrumentationKey=" not in conn_str:
+        logger.info("Application Insights connection string not set or invalid – telemetry disabled.")
         return
     try:
         from azure.monitor.opentelemetry import configure_azure_monitor
