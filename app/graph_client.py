@@ -156,3 +156,31 @@ async def get_app_install_status(application_id: str) -> dict[str, Any]:
     }
     data = await _graph_post(url, body)
     return data
+
+
+async def get_autopilot_device(serial_number: str) -> list[dict[str, Any]]:
+    """Check if a device is an Autopilot device by serial number."""
+    url = (
+        f"{settings.graph_base_url}/deviceManagement/"
+        "windowsAutopilotDeviceIdentities"
+    )
+    params = {"$filter": f"contains(serialNumber,'{serial_number}')"}
+    data = await _graph_get(url, params=params)
+    return data.get("value", [])
+
+
+async def get_compliance_policies_by_device(device_id: str) -> list[dict[str, Any]]:
+    """Retrieve compliance policy states assigned to a specific device."""
+    url = (
+        f"{settings.graph_base_url}/deviceManagement/managedDevices/"
+        f"{device_id}/deviceCompliancePolicyStates"
+    )
+    data = await _graph_get(url)
+    return data.get("value", [])
+
+
+async def get_conditional_access_policies() -> list[dict[str, Any]]:
+    """Retrieve all enabled conditional access policies that require compliant devices."""
+    url = f"{settings.graph_base_url}/identity/conditionalAccess/policies"
+    data = await _graph_get(url)
+    return data.get("value", [])

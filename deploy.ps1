@@ -127,7 +127,8 @@ az deployment group create `
     --output none
 
 Write-Host "==> Forcing new revision to pull latest image..."
-az containerapp update --name "${BaseName}-app" --resource-group $ResourceGroup --image $ImageName --output none
+$revSuffix = "v" + (Get-Date -Format "yyyyMMddHHmmss")
+az containerapp update --name "${BaseName}-app" --resource-group $ResourceGroup --image $ImageName --revision-suffix $revSuffix --output none
 
 $McpEndpoint = az deployment group show `
     --resource-group $ResourceGroup `

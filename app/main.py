@@ -11,6 +11,9 @@ from app.config import settings
 from app.graph_client import (
     get_apps_by_device,
     get_app_install_status,
+    get_autopilot_device,
+    get_compliance_policies_by_device,
+    get_conditional_access_policies,
     get_devices_by_upn,
     get_intune_apps,
     get_policies_by_device_id,
@@ -131,6 +134,57 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["application_id"],
         },
     },
+    {
+        "name": "get_autopilot_device",
+        "description": (
+            "Check if a device is a Windows Autopilot device by its serial number. "
+            "Returns Autopilot identity details including enrollment state, group tag, "
+            "deployment profile, and provisioning status. Use the serial number from "
+            "get_devices_by_upn (serialNumber field)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "serial_number": {
+                    "type": "string",
+                    "description": "The device serial number to look up in Autopilot.",
+                }
+            },
+            "required": ["serial_number"],
+        },
+    },
+    {
+        "name": "get_compliance_policies_by_device",
+        "description": (
+            "Retrieve compliance policy states assigned to a specific managed device. "
+            "Returns each compliance policy's name, state (compliant/nonCompliant/error), "
+            "and setting details. Use the Intune device ID from get_devices_by_upn."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string",
+                    "description": "The Intune device ID (GUID) of the managed device.",
+                }
+            },
+            "required": ["device_id"],
+        },
+    },
+    {
+        "name": "get_conditional_access_policies",
+        "description": (
+            "Retrieve all conditional access policies in the tenant. "
+            "Returns policy names, states, conditions (users, apps, platforms, locations), "
+            "and grant controls (e.g. require compliant device, require MFA). "
+            "Use this together with get_compliance_policies_by_device to determine "
+            "which conditional access policies are impacted when a device is not compliant."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
 ]
 
 
@@ -247,6 +301,34 @@ async def _handle_tool_call(req_id: Any, params: dict) -> dict:
             if not application_id:
                 return _jsonrpc_error(req_id, -32602, "Missing required argument: application_id")
             result = await get_app_install_status(application_id)
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
+        if tool_name == "get_autopilot_device":
+            serial_number = arguments.get("serial_number", "")
+            if not serial_number:
+                return _jsonrpc_error(req_id, -32602, "Missing required argument: serial_number")
+            result = await get_autopilot_device(serial_number)
+            if not result:
+                return _jsonrpc_response(req_id, {
+                    "content": [{"type": "text", "text": f"No Autopilot device found with serial number '{serial_number}'. The device is not enrolled in Autopilot."}],
+                })
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
+        if tool_name == "get_compliance_policies_by_device":
+            device_id = arguments.get("device_id", "")
+            if not device_id:
+                return _jsonrpc_error(req_id, -32602, "Missing required argument: device_id")
+            result = await get_compliance_policies_by_device(device_id)
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
+        if tool_name == "get_conditional_access_policies":
+            result = await get_conditional_access_policies()
             return _jsonrpc_response(req_id, {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
             })

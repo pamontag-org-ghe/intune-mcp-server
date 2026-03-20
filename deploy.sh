@@ -119,7 +119,8 @@ az deployment group create \
   --output none
 
 echo "==> Forcing new revision to pull latest image..."
-az containerapp update --name "${BASE_NAME}-app" --resource-group "$RESOURCE_GROUP" --image "$IMAGE_NAME" --output none
+REV_SUFFIX="v$(date +%Y%m%d%H%M%S)"
+az containerapp update --name "${BASE_NAME}-app" --resource-group "$RESOURCE_GROUP" --image "$IMAGE_NAME" --revision-suffix "$REV_SUFFIX" --output none
 
 MCP_ENDPOINT=$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \

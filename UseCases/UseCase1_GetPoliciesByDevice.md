@@ -37,3 +37,7 @@ POST https://graph.microsoft.com/beta/deviceManagement/reports/microsoft.graph.g
     "PolicyName"
   ]
 }
+
+## Test output
+
+![Use Case 1 Output](./images/usecase_1.png)

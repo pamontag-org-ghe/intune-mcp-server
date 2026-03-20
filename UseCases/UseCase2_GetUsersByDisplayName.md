@@ -13,3 +13,7 @@ Which users have a display name that matches 'display_name' (provide NOT exact m
 Get Users by Display Name (provide NOT exact match but also fuzzy search):
 
 GET https://graph.microsoft.com/beta/users?$$search="displayName:{display_name}"
+
+## Test output
+
+![Use Case 2 Output](./images/usecase_2.png)
