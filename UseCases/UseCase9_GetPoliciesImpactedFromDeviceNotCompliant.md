@@ -15,7 +15,9 @@ Get Compliance Policies Impacted by Device Non-Compliance:
 
 GET https://graph.microsoft.com/beta/identity/conditionalAccess/policies?$filter=contains(conditions/devices, 'DEVICEID') and contains(conditions/applications, 'All') and state eq 'enabled'
 
+## Test output
 
+![Use Case 9 Output](./images/usecase_9.png) 
 
 
 

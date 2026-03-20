@@ -13,3 +13,7 @@ Which compliance policies are assigned to the device?
 Get Compliance Policies Assigned to Device:
 
 GET https://graph.microsoft.com/beta/deviceManagement/managedDevices/DEVICEID/deviceCompliancePolicyStates/
+
+## Test output
+
+![Use Case 8 Output](./images/usecase_9.png) 
