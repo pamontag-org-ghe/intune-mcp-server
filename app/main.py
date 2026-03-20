@@ -8,7 +8,14 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.graph_client import get_devices_by_upn, get_policies_by_device_id, get_users_by_display_name
+from app.graph_client import (
+    get_apps_by_device,
+    get_app_install_status,
+    get_devices_by_upn,
+    get_intune_apps,
+    get_policies_by_device_id,
+    get_users_by_display_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +76,59 @@ TOOLS: list[dict[str, Any]] = [
                 }
             },
             "required": ["display_name"],
+        },
+    },
+    {
+        "name": "get_apps_by_device",
+        "description": (
+            "Retrieve applications assigned to a specific device and their installation states. "
+            "Requires the user ID (GUID) and the Intune device ID (GUID). "
+            "Returns app names, install state, supported device types, and error details for apps in error."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "description": "The Azure AD user ID (GUID) of the device owner.",
+                },
+                "device_id": {
+                    "type": "string",
+                    "description": "The Intune device ID (GUID) of the managed device.",
+                },
+            },
+            "required": ["user_id", "device_id"],
+        },
+    },
+    {
+        "name": "get_intune_apps",
+        "description": (
+            "List all applications distributed by Intune. "
+            "Returns app ID, display name, publisher, creation date, and assignment status. "
+            "Use this to discover which apps are managed and distributed through Intune."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "get_app_install_status",
+        "description": (
+            "Troubleshoot application installation errors. Retrieves the device-level "
+            "installation status report for a specific Intune application. "
+            "Returns device name, user, platform, install state, error codes (decimal and hex), "
+            "and detailed error descriptions. Use this to diagnose why an app is failing to install."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "application_id": {
+                    "type": "string",
+                    "description": "The Intune application ID (GUID). Use get_intune_apps to find it.",
+                }
+            },
+            "required": ["application_id"],
         },
     },
 ]
@@ -160,6 +220,33 @@ async def _handle_tool_call(req_id: Any, params: dict) -> dict:
                 return _jsonrpc_response(req_id, {
                     "content": [{"type": "text", "text": f"No users found matching '{display_name}'."}],
                 })
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
+        if tool_name == "get_apps_by_device":
+            user_id = arguments.get("user_id", "")
+            device_id = arguments.get("device_id", "")
+            if not user_id:
+                return _jsonrpc_error(req_id, -32602, "Missing required argument: user_id")
+            if not device_id:
+                return _jsonrpc_error(req_id, -32602, "Missing required argument: device_id")
+            result = await get_apps_by_device(user_id, device_id)
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
+        if tool_name == "get_intune_apps":
+            result = await get_intune_apps()
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
+        if tool_name == "get_app_install_status":
+            application_id = arguments.get("application_id", "")
+            if not application_id:
+                return _jsonrpc_error(req_id, -32602, "Missing required argument: application_id")
+            result = await get_app_install_status(application_id)
             return _jsonrpc_response(req_id, {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
             })

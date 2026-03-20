@@ -54,7 +54,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 // --- Container Apps Environment ---
-resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-10-02-preview' = {
   name: '${baseName}-env'
   location: location
   properties: {
@@ -65,11 +65,28 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
         sharedKey: logAnalytics.listKeys().primarySharedKey
       }
     }
+    openTelemetryConfiguration: {
+      destinationsConfiguration: {
+        otlpConfigurations: []
+      }
+      tracesConfiguration: {
+        destinations: []
+      }
+      logsConfiguration: {
+        destinations: []
+      }
+      metricsConfiguration: {
+        destinations: []
+      }
+    }
+    appInsightsConfiguration: {
+      connectionString: appInsights.properties.ConnectionString
+    }
   }
 }
 
 // --- Container App ---
-resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource containerApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
   name: '${baseName}-app'
   location: location
   properties: {

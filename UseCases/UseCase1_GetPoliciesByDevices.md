@@ -4,15 +4,19 @@
 
 This use case describes the process of retrieving policies associated with specific devices. It outlines the steps involved in querying the system for policies based on device identifiers and the expected outcomes.
 
+## Question to answer
+
+Which policies are assigned to a device? What is the status of these policies?
+
 ## APIs Endpoints
 
 Get Devices by User Principal Name (UPN):
 
-https://graph.microsoft.com/beta/deviceManagement/managedDevices?$filter=(userPrincipalName eq 'upn')
+GET https://graph.microsoft.com/beta/deviceManagement/managedDevices?$filter=(userPrincipalName eq 'upn')
  
 Get Policies by Device ID:
 
-https://graph.microsoft.com/beta/deviceManagement/reports/microsoft.graph.getConfigurationPoliciesReportForDevice
+POST https://graph.microsoft.com/beta/deviceManagement/reports/microsoft.graph.getConfigurationPoliciesReportForDevice
 
 {
   "select": [

@@ -96,7 +96,8 @@ else
 fi
 
 echo "==> Building and pushing Docker image via ACR Build..."
-az acr build --registry "$ACR_NAME" --image "${BASE_NAME}:${IMAGE_TAG}" --file Dockerfile . --output none
+CACHEBUST=$(date +%Y%m%d%H%M%S)
+az acr build --registry "$ACR_NAME" --image "${BASE_NAME}:${IMAGE_TAG}" --file Dockerfile --build-arg "CACHEBUST=$CACHEBUST" . --output none
 
 echo "==> Retrieving ACR credentials..."
 ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query "username" -o tsv)
@@ -116,6 +117,9 @@ az deployment group create \
     containerRegistryUsername="$ACR_USERNAME" \
     containerRegistryPassword="$ACR_PASSWORD" \
   --output none
+
+echo "==> Forcing new revision to pull latest image..."
+az containerapp update --name "${BASE_NAME}-app" --resource-group "$RESOURCE_GROUP" --image "$IMAGE_NAME" --output none
 
 MCP_ENDPOINT=$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \

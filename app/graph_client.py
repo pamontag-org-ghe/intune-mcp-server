@@ -100,3 +100,59 @@ async def get_users_by_display_name(display_name: str) -> list[dict[str, Any]]:
         response.raise_for_status()
         data = response.json()
     return data.get("value", [])
+
+
+async def get_apps_by_device(user_id: str, device_id: str) -> dict[str, Any]:
+    """Retrieve application intent and states for a specific user and device."""
+    url = (
+        f"{settings.graph_base_url}/users('{user_id}')/"
+        f"mobileAppIntentAndStates('{device_id}')"
+    )
+    data = await _graph_get(url)
+    return data
+
+
+async def get_intune_apps() -> list[dict[str, Any]]:
+    """Retrieve all mobile apps distributed by Intune."""
+    url = f"{settings.graph_base_url}/deviceAppManagement/mobileApps"
+    params = {
+        "$select": "id,displayName,publisher,createdDateTime,"
+                   "lastModifiedDateTime,isAssigned",
+        "$top": "100",
+        "$orderby": "displayName",
+    }
+    data = await _graph_get(url, params=params)
+    return data.get("value", [])
+
+
+async def get_app_install_status(application_id: str) -> dict[str, Any]:
+    """Retrieve device installation status report for a specific application."""
+    url = (
+        f"{settings.graph_base_url}/deviceManagement/reports/"
+        "microsoft.graph.retrieveDeviceAppInstallationStatusReport"
+    )
+    body = {
+        "select": [
+            "DeviceName",
+            "DeviceId",
+            "UserPrincipalName",
+            "Platform",
+            "AppVersion",
+            "InstallState",
+            "InstallStateDetail",
+            "ErrorCode",
+            "HexErrorCode",
+            "LastModifiedDateTime",
+            "UserName",
+            "UserId",
+            "ApplicationId",
+            "AppInstallState",
+            "AppInstallStateDetails",
+        ],
+        "skip": 0,
+        "top": 50,
+        "filter": f"(ApplicationId eq '{application_id}')",
+        "orderBy": [],
+    }
+    data = await _graph_post(url, body)
+    return data

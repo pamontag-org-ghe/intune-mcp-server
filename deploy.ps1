@@ -104,7 +104,8 @@ if ($acrExists) {
 }
 
 Write-Host "==> Building and pushing Docker image via ACR Build..."
-az acr build --registry $AcrName --image "${BaseName}:$ImageTag" --file Dockerfile . --output none
+$cacheBust = Get-Date -Format "yyyyMMddHHmmss"
+az acr build --registry $AcrName --image "${BaseName}:$ImageTag" --file Dockerfile --build-arg "CACHEBUST=$cacheBust" . --output none
 
 Write-Host "==> Retrieving ACR credentials..."
 $AcrUsername = az acr credential show --name $AcrName --query "username" -o tsv
@@ -124,6 +125,9 @@ az deployment group create `
         containerRegistryUsername=$AcrUsername `
         containerRegistryPassword=$AcrPassword `
     --output none
+
+Write-Host "==> Forcing new revision to pull latest image..."
+az containerapp update --name "${BaseName}-app" --resource-group $ResourceGroup --image $ImageName --output none
 
 $McpEndpoint = az deployment group show `
     --resource-group $ResourceGroup `
