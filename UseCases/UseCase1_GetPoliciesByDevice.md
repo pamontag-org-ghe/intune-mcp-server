@@ -44,6 +44,10 @@ POST https://graph.microsoft.com/beta/deviceManagement/reports/microsoft.graph.g
   ]
 }
 
+Get Policy By name:
+
+GET https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations?$filter=contains(displayName,'policy_name')
+
 ## Test output
 
 ![Use Case 1 Output](./images/usecase_1.png)

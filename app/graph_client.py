@@ -93,7 +93,7 @@ async def get_users_by_display_name(display_name: str) -> list[dict[str, Any]]:
     params = {
         "$search": f'"displayName:{display_name}"',
         "$select": "id,displayName,userPrincipalName,mail",
-        "$top": "50",
+        "$top": "200",
         "$orderby": "displayName",
         "$count": "true",
     }
@@ -126,7 +126,7 @@ async def get_intune_apps(search_name: str = "") -> list[dict[str, Any]]:
     params: dict[str, str] = {
         "$select": "id,displayName,publisher,createdDateTime,"
                    "lastModifiedDateTime,isAssigned",
-        "$top": "100",
+        "$top": "200",
         "$orderby": "displayName",
     }
     if search_name:
@@ -170,7 +170,7 @@ async def get_app_install_status(
             "AppInstallStateDetails",
         ],
         "skip": 0,
-        "top": 50,
+        "top": 200,
         "filter": filter_expr,
         "orderBy": [],
     }
@@ -217,3 +217,44 @@ async def get_conditional_access_policies() -> list[dict[str, Any]]:
     url = f"{settings.graph_base_url}/identity/conditionalAccess/policies"
     data = await _graph_get(url)
     return data.get("value", [])
+
+
+async def get_policies_by_name(policy_name: str) -> list[dict[str, Any]]:
+    """Search device configuration policies by name across both legacy and Settings Catalog."""
+    results: list[dict[str, Any]] = []
+    search_lower = policy_name.lower()
+
+    # Legacy device configurations
+    url_legacy = f"{settings.graph_base_url}/deviceManagement/deviceConfigurations"
+    params: dict[str, str] | None = {
+        "$select": "id,displayName,description,lastModifiedDateTime,"
+                   "createdDateTime,version",
+        "$top": "200",
+        "$orderby": "displayName",
+    }
+    data = await _graph_get(url_legacy, params=params)
+    for item in data.get("value", []):
+        if search_lower in item.get("displayName", "").lower():
+            item["policyType"] = "DeviceConfiguration"
+            results.append(item)
+
+    # Settings Catalog (configurationPolicies) — paginated, client-side filter
+    url_catalog: str | None = (
+        f"{settings.graph_base_url}/deviceManagement/configurationPolicies"
+    )
+    cat_params: dict[str, str] | None = {
+        "$select": "id,name,description,lastModifiedDateTime,"
+                   "createdDateTime,settingCount,isAssigned",
+        "$top": "200",
+    }
+    while url_catalog:
+        data_catalog = await _graph_get(url_catalog, params=cat_params)
+        for item in data_catalog.get("value", []):
+            if search_lower in item.get("name", "").lower():
+                item["displayName"] = item.pop("name", "")
+                item["policyType"] = "SettingsCatalog"
+                results.append(item)
+        url_catalog = data_catalog.get("@odata.nextLink")
+        cat_params = None  # nextLink includes query params
+
+    return results

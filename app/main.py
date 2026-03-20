@@ -18,6 +18,7 @@ from app.graph_client import (
     get_devices_by_upn,
     get_intune_apps,
     get_policies_by_device_id,
+    get_policies_by_name,
     get_users_by_display_name,
 )
 
@@ -218,6 +219,24 @@ TOOLS: list[dict[str, Any]] = [
             "properties": {},
         },
     },
+    {
+        "name": "get_policies_by_name",
+        "description": (
+            "Search for Intune device configuration policies by name using fuzzy matching (contains). "
+            "Returns policy ID, display name, description, version, and timestamps. "
+            "Use this when you know the policy name or part of it."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "policy_name": {
+                    "type": "string",
+                    "description": "The policy name or partial name to search for.",
+                }
+            },
+            "required": ["policy_name"],
+        },
+    },
 ]
 
 
@@ -378,6 +397,19 @@ async def _handle_tool_call(req_id: Any, params: dict) -> dict:
 
         if tool_name == "get_conditional_access_policies":
             result = await get_conditional_access_policies()
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
+        if tool_name == "get_policies_by_name":
+            policy_name = arguments.get("policy_name", "")
+            if not policy_name:
+                return _jsonrpc_error(req_id, -32602, "Missing required argument: policy_name")
+            result = await get_policies_by_name(policy_name)
+            if not result:
+                return _jsonrpc_response(req_id, {
+                    "content": [{"type": "text", "text": f"No policies found matching '{policy_name}'."}],
+                })
             return _jsonrpc_response(req_id, {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
             })
