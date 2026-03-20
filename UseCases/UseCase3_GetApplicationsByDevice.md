@@ -13,3 +13,7 @@ Which applications are assigned to a device? Which of them are in error?
 Get Applications by User and DeviceId:
 
 GET https://graph.microsoft.com/beta/users(UserID')/mobileAppIntentAndStates('deviceId')
+
+## Test output
+
+![Use Case 3 Output](./images/usecase_3.png) 

@@ -2,7 +2,7 @@
     "servers": {
         "intune-mcp-server": {
             "type": "http",
-            "url": "http://localhost:8000/mcp"
+            "url": "https://intune-mcp-app.livelybeach-a07d25bc.swedencentral.azurecontainerapps.io/mcp"
         }
     }
 }

@@ -13,6 +13,12 @@ Which policies are assigned to a device? What is the status of these policies?
 Get Devices by User Principal Name (UPN):
 
 GET https://graph.microsoft.com/beta/deviceManagement/managedDevices?$filter=(userPrincipalName eq 'upn')
+
+Get Device by Device Name:
+(IMPORTANT - USE SEARCH/CONTAINS OPERATOR IN THE FILTER TO AVOID THE EXACT MATCH)
+
+GET https://graph.microsoft.com/beta/deviceManagement/managedDevices?$filter=contains(deviceName,'device_name')
+GET https://graph.microsoft.com/beta/deviceManagement/managedDevices?$filter=(deviceName eq 'device_name')
  
 Get Policies by Device ID:
 
@@ -41,3 +47,5 @@ POST https://graph.microsoft.com/beta/deviceManagement/reports/microsoft.graph.g
 ## Test output
 
 ![Use Case 1 Output](./images/usecase_1.png)
+![Use Case 1 Output](./images/usecase_1_2.png)
+![Use Case 1 Output](./images/usecase_1_3.png)

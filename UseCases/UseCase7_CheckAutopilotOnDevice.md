@@ -13,3 +13,8 @@ Check if the device is an Autopilot device and if it has been provisioned using 
 Get Autopilot Device by Serial Number:
 
 GET https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities?$filter=contains(serialNumber,'XXXXXXXXXXX')
+
+## Test output
+
+![Use Case 7 Output](./images/usecase_7.png) 
+![Use Case 7 Output](./images/usecase_7_1.png) 

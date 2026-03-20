@@ -13,3 +13,7 @@ Which app are distributed by Intune?
 Get Applications distributed by Intune:
 
 GET https://graph.microsoft.com/beta/deviceAppManagement/mobileApps
+
+## Test output
+
+![Use Case 4 Output](./images/usecase_4.png) 

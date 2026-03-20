@@ -14,6 +14,7 @@ from app.graph_client import (
     get_autopilot_device,
     get_compliance_policies_by_device,
     get_conditional_access_policies,
+    get_devices_by_name,
     get_devices_by_upn,
     get_intune_apps,
     get_policies_by_device_id,
@@ -42,6 +43,24 @@ TOOLS: list[dict[str, Any]] = [
                 }
             },
             "required": ["upn"],
+        },
+    },
+    {
+        "name": "get_devices_by_name",
+        "description": (
+            "Search for Intune managed devices by device name using fuzzy matching (contains). "
+            "Use this when you know the device name or part of it but not the UPN. "
+            "Returns device id, device name, user, OS, compliance state, and more."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "device_name": {
+                    "type": "string",
+                    "description": "The device name or partial name to search for, e.g. 'W365' or 'MacBook'.",
+                }
+            },
+            "required": ["device_name"],
         },
     },
     {
@@ -106,30 +125,44 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_intune_apps",
         "description": (
-            "List all applications distributed by Intune. "
+            "List applications distributed by Intune, optionally searching by name. "
             "Returns app ID, display name, publisher, creation date, and assignment status. "
-            "Use this to discover which apps are managed and distributed through Intune."
+            "Use this to discover apps or find an application ID when you only know the app name."
         ),
         "inputSchema": {
             "type": "object",
-            "properties": {},
+            "properties": {
+                "search_name": {
+                    "type": "string",
+                    "description": "Optional app name (or partial name) to search for. Leave empty to list all apps.",
+                }
+            },
         },
     },
     {
         "name": "get_app_install_status",
         "description": (
             "Troubleshoot application installation errors. Retrieves the device-level "
-            "installation status report for a specific Intune application. "
-            "Returns device name, user, platform, install state, error codes (decimal and hex), "
-            "and detailed error descriptions. Use this to diagnose why an app is failing to install."
+            "installation status report for a specific Intune application, optionally "
+            "filtered by device name. Returns device name, user, platform, install state, "
+            "error codes (decimal and hex), and detailed error descriptions. "
+            "Use get_intune_apps with a search_name to find the application_id first."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "application_id": {
                     "type": "string",
-                    "description": "The Intune application ID (GUID). Use get_intune_apps to find it.",
-                }
+                    "description": "The Intune application ID (GUID). Use get_intune_apps to find it by name.",
+                },
+                "device_id": {
+                    "type": "string",
+                    "description": "Optional Intune device ID (GUID) to filter results. Takes priority over device_name.",
+                },
+                "device_name": {
+                    "type": "string",
+                    "description": "Optional device name to filter results. Used only if device_id is not provided.",
+                },
             },
             "required": ["application_id"],
         },
@@ -256,6 +289,19 @@ async def _handle_tool_call(req_id: Any, params: dict) -> dict:
                 "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
             })
 
+        if tool_name == "get_devices_by_name":
+            device_name = arguments.get("device_name", "")
+            if not device_name:
+                return _jsonrpc_error(req_id, -32602, "Missing required argument: device_name")
+            result = await get_devices_by_name(device_name)
+            if not result:
+                return _jsonrpc_response(req_id, {
+                    "content": [{"type": "text", "text": f"No devices found matching '{device_name}'."}],
+                })
+            return _jsonrpc_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
+            })
+
         if tool_name == "get_policies_by_device_id":
             device_id = arguments.get("device_id", "")
             if not device_id:
@@ -291,7 +337,8 @@ async def _handle_tool_call(req_id: Any, params: dict) -> dict:
             })
 
         if tool_name == "get_intune_apps":
-            result = await get_intune_apps()
+            search_name = arguments.get("search_name", "")
+            result = await get_intune_apps(search_name)
             return _jsonrpc_response(req_id, {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
             })
@@ -300,7 +347,9 @@ async def _handle_tool_call(req_id: Any, params: dict) -> dict:
             application_id = arguments.get("application_id", "")
             if not application_id:
                 return _jsonrpc_error(req_id, -32602, "Missing required argument: application_id")
-            result = await get_app_install_status(application_id)
+            device_name = arguments.get("device_name", "")
+            device_id = arguments.get("device_id", "")
+            result = await get_app_install_status(application_id, device_name, device_id)
             return _jsonrpc_response(req_id, {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2, default=str)}],
             })
@@ -337,8 +386,20 @@ async def _handle_tool_call(req_id: Any, params: dict) -> dict:
 
     except Exception as exc:
         logger.exception("Tool call failed: %s", tool_name)
+        error_msg = str(exc)
+        # Extract response body from httpx errors for better diagnostics
+        if hasattr(exc, "response") and exc.response is not None:
+            try:
+                detail = exc.response.json()
+                error_detail = detail.get("error", {})
+                code = error_detail.get("code", "")
+                message = error_detail.get("message", "")
+                if code or message:
+                    error_msg = f"{code}: {message}" if code else message
+            except Exception:
+                error_msg = exc.response.text or error_msg
         return _jsonrpc_response(req_id, {
-            "content": [{"type": "text", "text": f"Error: {exc}"}],
+            "content": [{"type": "text", "text": f"Tool '{tool_name}' failed: {error_msg}"}],
             "isError": True,
         })
 

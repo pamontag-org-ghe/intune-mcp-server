@@ -37,6 +37,14 @@ async def get_devices_by_upn(upn: str) -> list[dict[str, Any]]:
     return data.get("value", [])
 
 
+async def get_devices_by_name(device_name: str) -> list[dict[str, Any]]:
+    """Search managed devices by device name using contains (fuzzy match)."""
+    url = f"{settings.graph_base_url}/deviceManagement/managedDevices"
+    params = {"$filter": f"contains(deviceName,'{device_name}')"}
+    data = await _graph_get(url, params=params)
+    return data.get("value", [])
+
+
 async def get_policies_by_device_id(device_id: str) -> list[dict[str, Any]]:
     """Retrieve configuration policies for a specific device."""
     url = (
@@ -112,25 +120,37 @@ async def get_apps_by_device(user_id: str, device_id: str) -> dict[str, Any]:
     return data
 
 
-async def get_intune_apps() -> list[dict[str, Any]]:
-    """Retrieve all mobile apps distributed by Intune."""
+async def get_intune_apps(search_name: str = "") -> list[dict[str, Any]]:
+    """Retrieve mobile apps distributed by Intune, optionally filtered by name."""
     url = f"{settings.graph_base_url}/deviceAppManagement/mobileApps"
-    params = {
+    params: dict[str, str] = {
         "$select": "id,displayName,publisher,createdDateTime,"
                    "lastModifiedDateTime,isAssigned",
         "$top": "100",
         "$orderby": "displayName",
     }
+    if search_name:
+        params["$filter"] = f"contains(displayName, '{search_name}')"
     data = await _graph_get(url, params=params)
     return data.get("value", [])
 
 
-async def get_app_install_status(application_id: str) -> dict[str, Any]:
-    """Retrieve device installation status report for a specific application."""
+async def get_app_install_status(
+    application_id: str, device_name: str = "", device_id: str = ""
+) -> dict[str, Any]:
+    """Retrieve device installation status report for a specific application.
+
+    The report API only supports filtering by ApplicationId and DeviceName.
+    If device_id is provided, results are filtered client-side after retrieval.
+    """
     url = (
         f"{settings.graph_base_url}/deviceManagement/reports/"
         "microsoft.graph.retrieveDeviceAppInstallationStatusReport"
     )
+    filter_expr = f"(ApplicationId eq '{application_id}'"
+    if device_name:
+        filter_expr += f" and DeviceName eq '{device_name}'"
+    filter_expr += ")"
     body = {
         "select": [
             "DeviceName",
@@ -151,10 +171,23 @@ async def get_app_install_status(application_id: str) -> dict[str, Any]:
         ],
         "skip": 0,
         "top": 50,
-        "filter": f"(ApplicationId eq '{application_id}')",
+        "filter": filter_expr,
         "orderBy": [],
     }
     data = await _graph_post(url, body)
+    # Client-side filter by device_id since the API doesn't support it
+    if device_id and data.get("Values"):
+        schema = data.get("Schema", [])
+        device_id_idx = next(
+            (i for i, col in enumerate(schema) if col.get("Column") == "DeviceId"),
+            None,
+        )
+        if device_id_idx is not None:
+            data["Values"] = [
+                row for row in data["Values"]
+                if row[device_id_idx] == device_id
+            ]
+            data["TotalRowCount"] = len(data["Values"])
     return data
 
 

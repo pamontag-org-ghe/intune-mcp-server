@@ -13,3 +13,7 @@ Based on the free space on the device, can I safely perform a Feature Upgrade to
 Get Info on Device by UPN:
 
 GET https://graph.microsoft.com/beta/deviceManagement/managedDevices?$filter=(userPrincipalName eq 'mickey.mouse@velaxcrew.com')
+
+## Test output
+
+![Use Case 6 Output](./images/usecase_6.png) 
